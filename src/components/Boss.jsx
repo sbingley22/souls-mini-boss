@@ -120,6 +120,9 @@ const Boss = () => {
       else if (userInput.current == "block") {
         if (animLady.current == "Idle") animLady.current = "Block"
       }
+      else if (user input.current == "rollLeft") {
+        if (animLady.current == "Idle") animLady.current = "Dodge Left"
+      }
 
       userInput.current = null
     }
