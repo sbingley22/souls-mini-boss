@@ -7,6 +7,8 @@ import { Vector3 } from 'three'
 
 const camVec = new Vector3()
 const targetVec = new Vector3()
+const posVec = new Vector3()
+const dirVec = new Vector3()
 
 const combo = {
   slash1: [0.4,0.6],
@@ -32,6 +34,11 @@ const Boss = () => {
     actions["ogreIdle"].play()
 
     ladySword.current = nodes["Sword"]
+
+    nodes["Ana"].castShadow = true
+    nodes["PlateBoots"].castShadow = true
+    nodes["ogre"].castShadow = true
+    nodes["ground"].receiveShadow = true
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -70,7 +77,7 @@ const Boss = () => {
 
   // Mixer setup
   useEffect(()=>{
-    const oneshots = ["Take Damage", "Blocked", "Slash 1", "Slash 2", "Slash 3", "ogreJab", "ogreStrongLeft", "ogreStrongRight", "ogreStun", "ogreHurt"]
+    const oneshots = ["Take Damage", "Blocked", "Slash 1", "Slash 2", "Slash 3", "Dodge Left", "Dodge Right", "ogreJab", "ogreStrongLeft", "ogreStrongRight", "ogreStun", "ogreHurt"]
 
     oneshots.forEach( oneshot => {
       actions[oneshot].repetitions = 1
@@ -120,15 +127,50 @@ const Boss = () => {
       else if (userInput.current == "block") {
         if (animLady.current == "Idle") animLady.current = "Block"
       }
-      else if (user input.current == "rollLeft") {
+      else if (userInput.current == "rollLeft") {
         if (animLady.current == "Idle") animLady.current = "Dodge Left"
-      } else if (user input.current == "rollRight") {
+      } else if (userInput.current == "rollRight") {
         if (animLady.current == "Idle") animLady.current = "Dodge Right"
       }
 
       userInput.current = null
     }
     updateActions()
+
+    const updateRigPosition = () => {
+      if (animLady.current === "Dodge Left" || animLady.current === "Dodge Right") {
+        //const animTime = actions[animLady.current].time
+        let direction = 1
+        if (animLady.current === "Dodge Left") direction = -1
+        const angle = (Math.PI / 2) * delta * direction
+
+        const currentX = nodes["rig"].position.x
+        const currentZ = nodes["rig"].position.z
+
+        // Convert to polar coordinates
+        const radius = Math.sqrt(currentX * currentX + currentZ * currentZ)
+        const currentAngle = Math.atan2(currentZ, currentX)
+
+        // Calculate new angle after rotation
+        const newAngle = currentAngle - angle
+
+        // Convert back to Cartesian coordinates
+        nodes["rig"].position.x = radius * Math.cos(newAngle)
+        nodes["rig"].position.z = radius * Math.sin(newAngle)
+
+        // Calculate the direction to the origin and update rotation
+        const directionToOrigin = dirVec.set(nodes["rig"].position.x, 0, nodes["rig"].position.z).normalize()
+        nodes["rig"].quaternion.setFromUnitVectors(posVec.set(0, 0, -1), directionToOrigin)
+      }
+    }
+    updateRigPosition()
+
+    const updateOgrePosition = () => {
+      // Calculate the direction to the player and update rotation
+      const directionToPlayer = dirVec.set(-nodes["rig"].position.x, 0, -nodes["rig"].position.z).normalize()
+      nodes["rigogre"].quaternion.setFromUnitVectors(posVec.set(0, 0, -1), directionToPlayer)
+    }
+    updateOgrePosition()
 
     const updateSword = () => {
       let flashSword = false
@@ -181,7 +223,19 @@ const Boss = () => {
     <>
       <primitive object={scene} dispose={null} />
 
-      <Environment preset='forest' background={true} />
+      <Environment 
+        preset='forest' 
+        background={true}
+        backgroundIntensity={0.2}
+        backgroundBlurriness={0.06}
+        environmentIntensity={.95}
+      />
+      <directionalLight 
+        position={[20,10,0]} 
+        castShadow={true} 
+        intensity={.25}
+        color={"#EEAA11"} 
+      />
     </>
   )
 }
