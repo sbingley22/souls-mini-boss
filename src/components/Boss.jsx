@@ -122,6 +122,8 @@ const Boss = () => {
       }
       else if (user input.current == "rollLeft") {
         if (animLady.current == "Idle") animLady.current = "Dodge Left"
+      } else if (user input.current == "rollRight") {
+        if (animLady.current == "Idle") animLady.current = "Dodge Right"
       }
 
       userInput.current = null
