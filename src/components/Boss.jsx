@@ -17,7 +17,7 @@ const combo = {
   slash3: [0.8,1.8]
 }
 
-const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth }) => {
+const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth, setAttackIndicator, battleOver, setBattleOver }) => {
   const { scene, nodes, animations } = useGLTF(glbFile)
   const { actions, names, mixer } = useAnimations(animations, scene)
 
@@ -91,10 +91,12 @@ const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth }) =>
     const actionFinished = (e) => {
       const name = e.action.getClip().name
       if (name.includes("ogre")) {
-        if (name == "ogreDie") return
+        if (name == "ogreDie") animOgre.current = name
+        else if (name == "ogreWin") animOgre.current = name
         else animOgre.current = "ogreIdle"
       } else {
-        if (name == "Die") return
+        if (name == "Die") animLady.current = name
+        else if (name == "Win") animLady.current = name
         else if (name == "Blocked") animLady.current = "Block"
         else animLady.current = "Idle"
       }
@@ -112,11 +114,10 @@ const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth }) =>
   useFrame((state, delta) => {
     if (!scene) return
     if (!nodes["rig"]) return
+    if (battleOver) return
 
     const updateSword = () => {
       if (!ladySword) return
-      if (playerHealth <= 0) return
-      if (enemyHealth <= 0) return
 
       let flashSword = false
       const animTime = actions[animLady.current].time
@@ -155,6 +156,8 @@ const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth }) =>
             //Enemy Dead
             animOgre.current = "ogreDie"
             animLady.current = "Win"
+            setBattleOver("Victorious!")
+            return
 
           } else {
             let attacking = false
@@ -173,8 +176,6 @@ const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth }) =>
     updateSword()
 
     const updateActions = () => {
-      if (playerHealth <= 0) return
-      if (enemyHealth <= 0) return
       if (userInput.current == null) return
       const animTime = actions[animLady.current].time
 
@@ -200,12 +201,12 @@ const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth }) =>
         if (animLady.current == "Block") animLady.current = "Idle"
       } 
       else if (userInput.current == "block") {
-        if (animLady.current == "Idle") animLady.current = "Block"
+        if (animLady.current != "Take Damage") animLady.current = "Block"
       }
       else if (userInput.current == "rollLeft") {
-        if (animLady.current == "Idle") animLady.current = "Dodge Left"
+        if (animLady.current != "Take Damage") animLady.current = "Dodge Left"
       } else if (userInput.current == "rollRight") {
-        if (animLady.current == "Idle") animLady.current = "Dodge Right"
+        if (animLady.current != "Take Damage") animLady.current = "Dodge Right"
       }
 
       userInput.current = null
@@ -213,9 +214,6 @@ const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth }) =>
     updateActions()
 
     const ogreAI = () => {
-      if (playerHealth <= 0) return
-      if (enemyHealth <= 0) return
-
       let isAttacking = false
       let dmg = 5
 
@@ -259,14 +257,16 @@ const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth }) =>
         if (newPlayerHealth <= 0) {
           //Player Dead
           animLady.current = "Die"
-          animOgre.current = "Win"
+          animOgre.current = "ogreWin"
+          setBattleOver("You are Defeated!")
+          return
 
         } else {
           animLady.current = "Take Damage"
         }
       }
 
-      const readyToAttack = ["ogreIdle", "ogreHurt"]
+      const readyToAttack = ["ogreIdle", "ogreHurt2"]
       if (readyToAttack.includes(animOgre.current)) {
         if (Math.random() < 1 * delta) {
           // Try attack
@@ -277,9 +277,11 @@ const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth }) =>
           } else if (attackRandom < 0.75) {
             animOgre.current = "ogreStrongLeft"
             ogreHitFrame.current = true
+            setAttackIndicator(2)
           } else  {
             animOgre.current = "ogreStrongRight"
             ogreHitFrame.current = true
+            setAttackIndicator(1)
           }
         }
       }
