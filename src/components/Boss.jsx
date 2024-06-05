@@ -49,22 +49,36 @@ const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth, setA
 
   // Event Listeners
   useEffect(() => {
-    const mouseClick = (e) => {
-      const clickX = e.clientX / window.innerWidth
-      const clickY = e.clientY / window.innerHeight
-      //console.log("Clicked at X:", clickX, "Y:", clickY)
-
+    const handleAction = (x, y) => {
+      const clickX = x / window.innerWidth;
+      const clickY = y / window.innerHeight;
+      // console.log("Clicked at X:", clickX, "Y:", clickY);
+  
       if (clickX < 0.25) {
-        userInput.current = "rollLeft"
+        userInput.current = "rollLeft";
       } else if (clickX > 0.75) {
-        userInput.current = "rollRight"
+        userInput.current = "rollRight";
       } else if (clickY < 0.7) {
-        userInput.current = "attack"
+        userInput.current = "attack";
       } else {
-        userInput.current = "block"
+        userInput.current = "block";
       }
-      console.log(userInput.current)
-    }
+      console.log(userInput.current);
+    };
+  
+    const mouseClick = (e) => {
+      handleAction(e.clientX, e.clientY);
+    };
+  
+    const touchClick = (e) => {
+      e.preventDefault()
+      const touch = e.touches[0];
+      handleAction(touch.clientX, touch.clientY);
+    };
+
+    const preventContextMenu = (e) => {
+      e.preventDefault();
+    };
 
     const mouseUp = () => {
       userInput.current = "release"
@@ -72,10 +86,16 @@ const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth, setA
 
     window.addEventListener("mousedown", mouseClick)
     window.addEventListener("mouseup", mouseUp)
+    window.addEventListener("touchstart", touchClick)
+    window.addEventListener("touchend", mouseUp)
+    window.addEventListener("contextmenu", preventContextMenu);
 
     return () => {
       window.removeEventListener("mousedown", mouseClick)
       window.removeEventListener("mouseup", mouseUp)
+      window.removeEventListener("touchstart", touchClick)
+      window.removeEventListener("touchend", mouseUp)
+      window.removeEventListener("contextmenu", preventContextMenu);
     }
   }, [])
 

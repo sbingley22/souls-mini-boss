@@ -46,8 +46,8 @@ const HUD = ({ playerHealth, enemyHealth, attackIndicator, setAttackIndicator, b
   const battleOverStyle = {
     position: 'absolute',
     top: "2vh",
-    left: "40vw",
-    width: "20vw",
+    left: "30vw",
+    width: "40vw",
   }
 
   const [showPlayerHealth, setShowPlayerHealth] = useState(false)

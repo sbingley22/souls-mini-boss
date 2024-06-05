@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { Canvas } from "@react-three/fiber"
 import { Suspense, useRef, useState } from "react"
 import Boss from "./Boss"
