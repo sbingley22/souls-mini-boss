@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 /* eslint-disable react/no-unknown-property */
 import { Environment, useAnimations, useGLTF } from '@react-three/drei'
 import glbFile from '../assets/souls.glb?url'
@@ -12,10 +13,11 @@ const dirVec = new Vector3()
 
 const combo = {
   slash1: [0.4,0.6],
-  slash2: [0.4,0.6]
+  slash2: [0.5,0.7],
+  slash3: [0.8,1.8]
 }
 
-const Boss = () => {
+const Boss = ({ playerHealth, setPlayerHealth, enemyHealth, setEnemyHealth }) => {
   const { scene, nodes, animations } = useGLTF(glbFile)
   const { actions, names, mixer } = useAnimations(animations, scene)
 
@@ -25,6 +27,8 @@ const Boss = () => {
   const animOgre = useRef("ogreIdle")
   const animOgreLast = useRef("ogreIdle")
   const ladySword = useRef(null)
+  const hitFrame = useRef(null)
+  const ogreHitFrame = useRef(null)
 
   // Initial setup
   useEffect(()=>{
@@ -77,7 +81,7 @@ const Boss = () => {
 
   // Mixer setup
   useEffect(()=>{
-    const oneshots = ["Take Damage", "Blocked", "Slash 1", "Slash 2", "Slash 3", "Dodge Left", "Dodge Right", "ogreJab", "ogreStrongLeft", "ogreStrongRight", "ogreStun", "ogreHurt"]
+    const oneshots = ["Take Damage", "Blocked", "Slash 1", "Slash 2", "Slash 3", "Dodge Left", "Dodge Right", "Win", "Die", "ogreJab", "ogreStrongLeft", "ogreStrongRight", "ogreStun", "ogreHurt", "ogreHurt2", "ogreWin", "ogreDie"]
 
     oneshots.forEach( oneshot => {
       actions[oneshot].repetitions = 1
@@ -87,9 +91,12 @@ const Boss = () => {
     const actionFinished = (e) => {
       const name = e.action.getClip().name
       if (name.includes("ogre")) {
-        animOgre.current = "ogreIdle"
+        if (name == "ogreDie") return
+        else animOgre.current = "ogreIdle"
       } else {
-        animLady.current = "Idle"
+        if (name == "Die") return
+        else if (name == "Blocked") animLady.current = "Block"
+        else animLady.current = "Idle"
       }
     }
 
@@ -106,19 +113,87 @@ const Boss = () => {
     if (!scene) return
     if (!nodes["rig"]) return
 
+    const updateSword = () => {
+      if (!ladySword) return
+      if (playerHealth <= 0) return
+      if (enemyHealth <= 0) return
+
+      let flashSword = false
+      const animTime = actions[animLady.current].time
+
+      if (animLady.current == "Slash 1" && animTime > combo.slash1[0] && animTime < combo.slash1[1]) flashSword = true
+      else if (animLady.current == "Slash 2" && animTime > combo.slash2[0] && animTime < combo.slash2[1]) flashSword = true
+
+      if (flashSword) {
+        ladySword.current.children[0].material.color.set(1,0,0)
+      } else {
+        ladySword.current.children[0].material.color.set(.3,.3,.3)
+      }
+
+      let isHitFrame = false
+      let dmg = 3
+      if (hitFrame.current == true) {
+        if (animLady.current == "Slash 1" && animTime > combo.slash1[0]) {
+          isHitFrame = true
+        } 
+        else if (animLady.current == "Slash 2" && animTime > combo.slash2[0]) {
+          isHitFrame = true
+          dmg = dmg * 2
+        }
+        else if (animLady.current == "Slash 3" && animTime > combo.slash3[0]) {
+          isHitFrame = true
+          dmg = dmg * 3
+          console.log(animTime)
+        }
+        
+        if (isHitFrame) {
+          hitFrame.current = false
+          const newEnemyHealth = enemyHealth - dmg
+          setEnemyHealth(newEnemyHealth)
+
+          if (newEnemyHealth <= 0) {
+            //Enemy Dead
+            animOgre.current = "ogreDie"
+            animLady.current = "Win"
+
+          } else {
+            let attacking = false
+            if (animOgre.current == "ogreJab") attacking = true 
+            else if (animOgre.current == "ogreStrongLeft") attacking = true 
+            else if (animOgre.current == "ogreStrongRight") attacking = true 
+
+            if (!attacking) {
+              animOgre.current = "ogreHurt"
+              if (animOgreLast.current == "ogreHurt") animOgre.current = "ogreHurt2"
+            }
+          }
+        }
+      }
+    }
+    updateSword()
+
     const updateActions = () => {
+      if (playerHealth <= 0) return
+      if (enemyHealth <= 0) return
       if (userInput.current == null) return
       const animTime = actions[animLady.current].time
 
       if (userInput.current == "attack") {
         if (animLady.current == "Idle") {
           animLady.current = "Slash 1"
+          hitFrame.current = true
         }
         else if (animLady.current == "Slash 1") {
-          if (animTime > combo.slash1[0] && animTime < combo.slash1[1]) animLady.current = "Slash 2"
+          if (animTime > combo.slash1[0] && animTime < combo.slash1[1]) {
+            animLady.current = "Slash 2"
+            hitFrame.current = true
+          }
         }
         else if (animLady.current == "Slash 2") {
-          if (animTime > combo.slash2[0] && animTime < combo.slash2[1]) animLady.current = "Slash 3"
+          if (animTime > combo.slash2[0] && animTime < combo.slash2[1]) {
+            animLady.current = "Slash 3"
+            hitFrame.current = true
+          }
         }
       } 
       else if (userInput.current == "release") {
@@ -136,6 +211,81 @@ const Boss = () => {
       userInput.current = null
     }
     updateActions()
+
+    const ogreAI = () => {
+      if (playerHealth <= 0) return
+      if (enemyHealth <= 0) return
+
+      let isAttacking = false
+      let dmg = 5
+
+      if (ogreHitFrame.current) {
+        const animTime = actions[animOgre.current].time
+        if (animOgre.current == "ogreStrongLeft" && animTime > 1.0) {
+          if (animLady.current != "Dodge Left") {
+            isAttacking = true
+            dmg = dmg * 2
+          }
+          else {
+            ogreHitFrame.current = false
+          }
+        }
+        else if (animOgre.current == "ogreStrongRight" && animTime > 1.0) {
+          if (animLady.current != "Dodge Right") {
+            isAttacking = true
+            dmg = dmg * 2
+          }
+          else {
+            ogreHitFrame.current = false
+          }
+        }
+        else if (animOgre.current == "ogreJab" && animTime > 0.7) {
+          if (animLady.current != "Block") {
+            isAttacking = true
+          }
+          else {
+            ogreHitFrame.current = false
+            animLady.current = "Blocked"
+          }
+        }
+      }
+
+      if (isAttacking) {
+        // Attack Player
+        ogreHitFrame.current = false
+        const newPlayerHealth = playerHealth - dmg
+        setPlayerHealth(newPlayerHealth)
+
+        if (newPlayerHealth <= 0) {
+          //Player Dead
+          animLady.current = "Die"
+          animOgre.current = "Win"
+
+        } else {
+          animLady.current = "Take Damage"
+        }
+      }
+
+      const readyToAttack = ["ogreIdle", "ogreHurt"]
+      if (readyToAttack.includes(animOgre.current)) {
+        if (Math.random() < 1 * delta) {
+          // Try attack
+          const attackRandom = Math.random()
+          if (attackRandom < 0.5) {
+            animOgre.current = "ogreJab"
+            ogreHitFrame.current = true
+          } else if (attackRandom < 0.75) {
+            animOgre.current = "ogreStrongLeft"
+            ogreHitFrame.current = true
+          } else  {
+            animOgre.current = "ogreStrongRight"
+            ogreHitFrame.current = true
+          }
+        }
+      }
+
+    }
+    ogreAI()
 
     const updateRigPosition = () => {
       if (animLady.current === "Dodge Left" || animLady.current === "Dodge Right") {
@@ -166,25 +316,15 @@ const Boss = () => {
     updateRigPosition()
 
     const updateOgrePosition = () => {
+      if (animOgre.current == "ogreDie") return
+      else if (animOgre.current == "ogreStrongLeft") return
+      else if (animOgre.current == "ogreStrongRight") return
+
       // Calculate the direction to the player and update rotation
       const directionToPlayer = dirVec.set(-nodes["rig"].position.x, 0, -nodes["rig"].position.z).normalize()
       nodes["rigogre"].quaternion.setFromUnitVectors(posVec.set(0, 0, -1), directionToPlayer)
     }
     updateOgrePosition()
-
-    const updateSword = () => {
-      let flashSword = false
-      const animTime = actions[animLady.current].time
-      if (animLady.current == "Slash 1" && animTime > combo.slash1[0] && animTime < combo.slash1[1]) flashSword = true
-      else if (animLady.current == "Slash 2" && animTime > combo.slash2[0] && animTime < combo.slash2[1]) flashSword = true
-
-      if (flashSword) {
-        ladySword.current.children[0].material.color.set(1,0,0)
-      } else {
-        ladySword.current.children[0].material.color.set(.3,.3,.3)
-      }
-    }
-    updateSword()
 
     const updateCamera = () => {
       camVec.copy(nodes["rig"].position)
@@ -204,15 +344,22 @@ const Boss = () => {
     const updateAnimations = () => {
       if (!actions) return
 
-      if (animLady.current != animLadyLast.current) {
+      let playLadyAnim = false
+      if (animLady.current != animLadyLast.current) playLadyAnim = true
+
+      if (playLadyAnim) {
         actions[animLadyLast.current].fadeOut(0.2)
         actions[animLady.current].reset().fadeIn(0.2).play()
-        //console.log(animLady.current, animLadyLast.current)
         animLadyLast.current = animLady.current
-      } else if (animOgre.current != animOgreLast.current) {
+      }
+
+      let playOgreAnim = false
+      if (animOgre.current != animOgreLast.current) playOgreAnim = true
+      
+      if (playOgreAnim) {
         actions[animOgreLast.current].fadeOut(0.2)
-        actions[animOgre.current].reset().fadeIn(0.2)
-        animOgreLast.current = animOgre.current.play()
+        actions[animOgre.current].reset().fadeIn(0.2).play()
+        animOgreLast.current = animOgre.current
       }
     }
     updateAnimations()
@@ -231,9 +378,9 @@ const Boss = () => {
         environmentIntensity={.95}
       />
       <directionalLight 
-        position={[20,10,0]} 
+        position={[10,10,0]} 
         castShadow={true} 
-        intensity={.25}
+        intensity={.75}
         color={"#EEAA11"} 
       />
     </>
