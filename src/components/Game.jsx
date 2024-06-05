@@ -4,7 +4,7 @@ import { Suspense, useRef, useState } from "react"
 import Boss from "./Boss"
 import HUD from "./HUD"
 
-const Game = ({ setMode }) => {
+const Game = ({ setMode, isMobile }) => {
   const gameContainer = useRef()
 
   const [playerHealth, setPlayerHealth] = useState(100)
@@ -14,7 +14,7 @@ const Game = ({ setMode }) => {
 
   return (
     <div ref={gameContainer} className="game-container">
-      <Canvas shadows dpr={2}>
+      <Canvas shadows dpr={isMobile ? 0.5 : 2}>
         <Suspense>
 
           <Boss 

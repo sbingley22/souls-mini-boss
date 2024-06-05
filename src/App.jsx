@@ -1,8 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import Game from './components/Game'
 
 function App() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 768px)')
+    setIsMobile(mediaQuery.matches)
+
+    const handleResize = () => {
+      setIsMobile(mediaQuery.matches)
+      console.log("isMobile: ", mediaQuery.matches)
+    }
+
+    mediaQuery.addEventListener('change', handleResize)
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleResize)
+    }
+  }, [])
+
   const [mode, setMode] = useState(0)
 
   return (
@@ -14,7 +31,7 @@ function App() {
           <button onClick={()=>setMode(9)}>How to Play</button>
         </div>
       }
-      {mode == 1 && <Game setMode={setMode} />}
+      {mode == 1 && <Game setMode={setMode} isMobile={isMobile} />}
       {mode == 9 &&
         <div className='how-to-play'>
           <button onClick={()=>setMode(0)}>Return</button>
